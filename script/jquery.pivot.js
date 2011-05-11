@@ -119,12 +119,19 @@
             belowThisRow.find('.foldunfold').data("status", { bDatabound: false, treeNode: item });
 
             var rowSum = 0.0;
+            var pivot_values = [];
 
             for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {
                 var result = getResValue(item, pivotCols[col1].pivotValue);
-                if (opts.bTotals) {
+                if (opts.colTotals) {
                     rowSum += result;
                 }
+
+                pivot_values.push({
+                    'field': pivotCols[col1].pivotValue,
+                    'value': result
+                });
+
                 sb.clear();
                 sb.append('<td class="resultcell">');
                 sb.append(opts.formatFunc(result));
@@ -133,14 +140,14 @@
                 resCell.data("def", { pivot: pivotCols[col1], treeNode: item });
             }
 
-            if (opts.bTotals) {
+            if (opts.colTotals) {
                 sb.clear();
                 sb.append('<td class="total">');
                 sb.append(opts.formatFunc(rowSum));
                 sb.append('</td>');
                 $(sb.toString()).appendTo(belowThisRow);
             }
-
+                        
         }
     };
 
@@ -157,6 +164,7 @@
             sb.append(gbCols[i].text);
             sb.append('</th>');
         }
+
         var pivotCols = adapter.uniquePivotValues;
         for (var i1 = 0; i1 < pivotCols.length; i1 += 1) {
             sb.append('<th class="pivotcol">');
@@ -164,13 +172,14 @@
             sb.append('</th>');
         }
 
-        if (opts.bTotals) {
+        if (opts.colTotals) {
             sb.append('<th class="total">Total</th>');
         }
+
         sb.append('</tr>');
 
         //make sum row
-        if (opts.bTotals) {
+        if (opts.rowTotals) {
             sb.append('<tr class="total">');
             sb.append('<th class="total" colspan="');
             sb.append(gbCols.length);
@@ -178,17 +187,20 @@
             var rowSum = 0.0;
             for (var col = 0; col < pivotCols.length; col += 1) {
                 var result = getResValue(adapter.tree, pivotCols[col].pivotValue);
-                if (opts.bTotals) {
+                if (opts.rowTotals) {
                     rowSum += (+result);
                 }
                 sb.append('<td>');
                 sb.append(opts.formatFunc(result));
                 sb.append('</td>');
             }
-            sb.append('<td class="total">');
-            sb.append(opts.formatFunc(rowSum));
-            sb.append('</td>');
-            sb.append('</tr>');
+
+            if (opts.colTotals) {
+                sb.append('<td class="total">');
+                sb.append(opts.formatFunc(rowSum));
+                sb.append('</td>');
+                sb.append('</tr>');
+            }
         }
         sb.append('</table>');
 
@@ -283,7 +295,8 @@
     $.fn.pivot.defaults = {
         source: null, //Must be json or a jquery element containing a table
         bSum: true, //If you are pivoting over non numeric data set to false.
-        bTotals: true, //Includes total row and column
+        rowTotals: true, // Should we calculate row total?
+        colTotals: true, // Should we calculate column total?
         bCollapsible: true, // Set to false to expand all and remove open/close buttons
         formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
         parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
