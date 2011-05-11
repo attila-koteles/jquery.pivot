@@ -116,16 +116,16 @@
             }
             sb.append('</tr>');
 
-            
-            row_to_append = $(sb.toString()).insertAfter(belowThisRow);
-            
+            row_to_append = $(sb.toString()).insertAfter(belowThisRow);            
             row_to_append
                 .find('.foldunfold')
                 .data("status", { bDatabound: false, treeNode: item });
 
-            
+            // This is some global... we need it set the the new row
+            belowThisRow = row_to_append;
+
             var pivot_values = [];
-            for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {               
+            for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {
                 pivot_values.push({
                     'col_data': pivotCols[col1],
                     'tree_node': item,
@@ -159,47 +159,32 @@
     }
 
     var makeCollapsed = function () {
-        var sb = new lib.StringBuilder('<table class="pivot">');
         var gbCols = adapter.alGroupByCols;
 
-        //headerrow
-        sb.append('<tr class="head">');
+        var row = $('<table class="pivot"><tr class="head"></tr></table>')
+                        .appendTo($obj)
+                        .find('tr');
+
+        console.log(row);
+
+        // Header groups
         for (var i = 0; i < gbCols.length; i += 1) {
-            sb.append('<th class="groupby level');
-            sb.append(i);
-            sb.append('">');
-            sb.append(gbCols[i].text);
-            sb.append('</th>');
+            $('<th class="groupby level'+i+'">'+gbCols[i].text+'</th>').appendTo(row);
         }
 
-        var pivotCols = adapter.uniquePivotValues;
-        for (var i1 = 0; i1 < pivotCols.length; i1 += 1) {
-            sb.append('<th class="pivotcol">');
-            sb.append(pivotCols[i1].pivotValue);
-            sb.append('</th>');
-        }
-
-        if (opts.colTotals) {
-            sb.append('<th class="total">'+opts.colTotalCaption+'</th>');
-        }
-
-        for (var i = 0; i < opts.extraColumns.length; i++) {
-            sb.append('<td>');
-            sb.append(opts.extraColumns[i]);
-            sb.append('</td>');
-        };
-
-        sb.append('</tr>');
+        // This can be overriden later
+        opts.onRowAppendPivotHeaders(adapter.uniquePivotValues, row);
 
         //make sum row
+        var sb = new lib.StringBuilder('');
         if (opts.rowTotals) {
             sb.append('<tr class="total">');
             sb.append('<th class="total" colspan="');
             sb.append(gbCols.length);
             sb.append('">'+opts.rowTotalCaption+'</th>');
             var rowSum = 0.0;
-            for (var col = 0; col < pivotCols.length; col += 1) {
-                var result = getResValue(adapter.tree, pivotCols[col].pivotValue);
+            for (var col = 0; col < adapter.uniquePivotValues.length; col += 1) {
+                var result = getResValue(adapter.tree, adapter.uniquePivotValues[col].pivotValue);
                 if (opts.rowTotals) {
                     rowSum += (+result);
                 }
@@ -214,20 +199,25 @@
                 sb.append('</td>');
                 sb.append('</tr>');
             }
-
-            for (var i = 0; i < opts.extraColumns.length; i++) {
-                sb.append('<td></td>');
-            };            
-
         }
 
-        sb.append('</table>');
-
         //top level rows
-        $obj.html('');
-        $pivottable = $(sb.toString()).appendTo($obj);
-        appendChildRows(adapter.tree, $('tr:first', $pivottable));
+        //$obj.html('');
+        $(sb.toString()).insertAfter(row);
+        appendChildRows(adapter.tree, $('table tr:first', $obj));
     };
+
+    // Overridable function to draw out the pivot tables
+    var appendPivotHeaders = function(pivotCols, row) {
+
+        for (var i1 = 0; i1 < pivotCols.length; i1 += 1) {
+            $('<th class="pivotcol">'+pivotCols[i1].pivotValue+'</th>').appendTo(row);
+        }
+
+        if (opts.colTotals) {
+            $('<th class="total">'+opts.colTotalCaption+'</th>').appendTo(row);
+        }   
+    }
 
     var foldunfold = function (eventSource) {
         var el = $(this);
@@ -333,8 +323,10 @@
             appendPivotValues(pivot_values, row_to_append);
         },
 
-        // You might want to add some extra columns in the header too (if you use the above function)
-        extraColumns: [],
+        // Similar as above you can override the pivot table header drawing functions
+        onRowAppendPivotHeaders: function(pivotCols, row) {
+            appendPivotHeaders(pivotCols, row);
+        },
 
         onResultCellClicked: null, //Method thats called when a result cell is clicked. This can be used to call server and present details for that cell.
         noGroupByText: "No value", //Text used if no data is available for specific groupby and pivot value.
