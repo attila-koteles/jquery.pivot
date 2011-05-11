@@ -115,45 +115,48 @@
                 sb.append('</th>');
             }
             sb.append('</tr>');
-            belowThisRow = $(sb.toString()).insertAfter(belowThisRow);
-            belowThisRow.find('.foldunfold').data("status", { bDatabound: false, treeNode: item });
 
-            var rowSum = 0.0;
+            
+            row_to_append = $(sb.toString()).insertAfter(belowThisRow);
+            
+            row_to_append
+                .find('.foldunfold')
+                .data("status", { bDatabound: false, treeNode: item });
+
+            
             var pivot_values = [];
-
-            for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {
-                var result = getResValue(item, pivotCols[col1].pivotValue);
-                if (opts.colTotals) {
-                    rowSum += result;
-                }
-
+            for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {               
                 pivot_values.push({
-                    'field': pivotCols[col1].pivotValue,
-                    'value': result
+                    'col_data': pivotCols[col1],
+                    'tree_node': item,
+                    'pivot_sum': getResValue(item, pivotCols[col1].pivotValue)
                 });
-
-                sb.clear();
-                sb.append('<td class="resultcell">');
-                sb.append(opts.formatFunc(result));
-                sb.append('</td>');
-                var resCell = $(sb.toString()).appendTo(belowThisRow);
-                resCell.data("def", { pivot: pivotCols[col1], treeNode: item });
             }
 
-            if (opts.colTotals) {
-                sb.clear();
-                sb.append('<td class="total">');
-                sb.append(opts.formatFunc(rowSum));
-                sb.append('</td>');
-                $(sb.toString()).appendTo(belowThisRow);
-            }
-
-            if (opts.afterRowAddFunc) {
-                opts.afterRowAddFunc(pivot_values, belowThisRow);
-            };
-                        
+            opts.onRowAppendPivotValues(pivot_values, row_to_append);
         }
     };
+
+    // It's possible to override this default behaviour, if we need some customization
+    var appendPivotValues = function(pivot_values, row_to_append) {
+
+        var row_sum = 0.0;
+        for (var i = 0; i < pivot_values.length; i++) {
+
+            if (opts.colTotals) {
+                row_sum += pivot_values[i].pivot_sum;
+            }            
+
+            $('<td class="resultcell">'+opts.formatFunc(pivot_values[i].pivot_sum)+'</td>')
+                .appendTo(row_to_append)
+                .data("def", { pivot: pivot_values[i].col_data, treeNode: pivot_values[i].tree_node }); // try it without this
+        };
+
+        if (opts.colTotals) {
+            $('<td class="total">'+opts.formatFunc(row_sum)+'</td>')
+                .appendTo(row_to_append);
+        }        
+    }
 
     var makeCollapsed = function () {
         var sb = new lib.StringBuilder('<table class="pivot">');
@@ -322,10 +325,13 @@
         formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
         parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
         
-        // Fires after we added a new row (collapse, draw)
-        // pivot_values => [ { 'field': 'your col caption', 'value': 845}, { ... }, ... ]
-        // You can use it to add additional table cells, calculations here
-        afterRowAddFunc: function (pivot_values, row_to_append) { },
+        // Fires after we added a the grouping colums
+        // pivot_values => [ { 'col_data': Object, 'tree_node': Object, 'pivot_sum': 845}, { ... }, ... ]
+        // You can use it to override the default behaviour and add new colums, change order, hide items
+        // Calculate different "totals" (average?)
+        onRowAppendPivotValues: function (pivot_values, row_to_append) {
+            appendPivotValues(pivot_values, row_to_append);
+        },
 
         // You might want to add some extra columns in the header too (if you use the above function)
         extraColumns: [],
@@ -403,7 +409,9 @@
         this.dataid = data.dataid;
         //exctract header info
         for (var cellIndex = 0, cellcount = data.columns.length; cellIndex < cellcount; cellIndex += 1) {
+            
             var col = data.columns[cellIndex];
+
             var cell = {
                 colvalue: col.colvalue,
                 coltext: col.coltext,
@@ -437,6 +445,7 @@
         for (var rowIndex = 0, rowcount = data.rows.length; rowIndex < rowcount; rowIndex += 1) {
             var cells = data.rows[rowIndex];
             var curNode = this.tree;
+
             //groupbys
             for (var i = 0; i < this.alGroupByCols.length; i += 1) {
                 var groupbyValue = trim(cells[this.alGroupByCols[i].colvalue]);
@@ -459,6 +468,7 @@
 
                 curNode = newObj;
             }
+
             //pivot
             var pivotValue = trim(cells[this.pivotCol.colvalue]);
             var pivotSortBy = trim(cells[this.pivotCol.sortbycol]);
@@ -466,7 +476,14 @@
             if (!curNode.pivotvalues) {
                 curNode.pivotvalues = [];
             }
-            var newPivotValue = { pivotValue: pivotValue, result: result, sortby: pivotSortBy, dataid: this.pivotCol.dataid };
+            
+            var newPivotValue = { 
+                pivotValue: pivotValue, 
+                result: result, 
+                sortby: pivotSortBy, 
+                dataid: this.pivotCol.dataid
+            };
+
             curNode.pivotvalues.push(newPivotValue);
             if (!lib.exists(this.uniquePivotValues, findPivotFunc, pivotValue)) {
                 this.uniquePivotValues.push(newPivotValue);
