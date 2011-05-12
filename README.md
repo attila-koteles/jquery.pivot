@@ -17,10 +17,9 @@ The project lives on github. You can find it at http://github.com/janusschmidt/j
         formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
         parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
         
-        // Fires after we added a the grouping colums
-        // pivot_values => [ { 'col_data': Object, 'tree_node': Object, 'pivot_sum': 845}, { ... }, ... ]
         // You can use it to override the default behaviour and add new colums, change order, hide items
         // Calculate different "totals" (average?)
+        // This same function runs when we add a new row, and also for the totals
         onRowAppendPivotValues: function (pivot_values, row_to_append) {
             appendPivotValues(pivot_values, row_to_append);
         },

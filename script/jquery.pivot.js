@@ -159,13 +159,12 @@
     }
 
     var makeCollapsed = function () {
+
         var gbCols = adapter.alGroupByCols;
 
         var row = $('<table class="pivot"><tr class="head"></tr></table>')
                         .appendTo($obj)
                         .find('tr');
-
-        console.log(row);
 
         // Header groups
         for (var i = 0; i < gbCols.length; i += 1) {
@@ -175,35 +174,27 @@
         // This can be overriden later
         opts.onRowAppendPivotHeaders(adapter.uniquePivotValues, row);
 
-        //make sum row
-        var sb = new lib.StringBuilder('');
-        if (opts.rowTotals) {
-            sb.append('<tr class="total">');
-            sb.append('<th class="total" colspan="');
-            sb.append(gbCols.length);
-            sb.append('">'+opts.rowTotalCaption+'</th>');
-            var rowSum = 0.0;
+        // Now comes the footer row (totals)
+        if (opts.rowTotals) { // if enabled
+            
+            // New row
+            row = $('<tr class="total"></tr>').insertAfter(row);
+            $('<th class="total" colspan="'+gbCols.length+'">'+opts.rowTotalCaption+'</th>').appendTo(row);
+
+            var pivot_values = [];
             for (var col = 0; col < adapter.uniquePivotValues.length; col += 1) {
-                var result = getResValue(adapter.tree, adapter.uniquePivotValues[col].pivotValue);
-                if (opts.rowTotals) {
-                    rowSum += (+result);
-                }
-                sb.append('<td>');
-                sb.append(opts.formatFunc(result));
-                sb.append('</td>');
+                pivot_values.push({
+                    'col_data': adapter.uniquePivotValues[col],
+                    'tree_node': null,              // no such thing here
+                    'pivot_sum': getResValue(adapter.tree, adapter.uniquePivotValues[col].pivotValue)
+                });
             }
+            
+            // We use the same function as we used to draw the lines inside the table
+            opts.onRowAppendPivotValues(pivot_values, row);
+        };
 
-            if (opts.colTotals) {
-                sb.append('<td class="total">');
-                sb.append(opts.formatFunc(rowSum));
-                sb.append('</td>');
-                sb.append('</tr>');
-            }
-        }
-
-        //top level rows
-        //$obj.html('');
-        $(sb.toString()).insertAfter(row);
+        // We calculate the first level rows...
         appendChildRows(adapter.tree, $('table tr:first', $obj));
     };
 
@@ -315,10 +306,9 @@
         formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
         parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
         
-        // Fires after we added a the grouping colums
-        // pivot_values => [ { 'col_data': Object, 'tree_node': Object, 'pivot_sum': 845}, { ... }, ... ]
         // You can use it to override the default behaviour and add new colums, change order, hide items
         // Calculate different "totals" (average?)
+        // This same function runs when we add a new row, and also for the totals
         onRowAppendPivotValues: function (pivot_values, row_to_append) {
             appendPivotValues(pivot_values, row_to_append);
         },
