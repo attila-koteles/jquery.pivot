@@ -1,36 +1,35 @@
-﻿/*global jQuery, JSON, $, alert, document, AdapterObject, PagerObject, FilterObject, SortObject, HideColumns */
-/*
-$.fn.pivot.defaults = {
-    source: null, //Must be json or a jquery element containing a table
-    
-    bSum: true, //If you are pivoting over non numeric data set to false.
-    rowTotals: true, // Should we calculate row total?
-    colTotals: true, // Should we calculate column total?
-    bCollapsible: true, // Set to false to expand all and remove open/close buttons
+﻿/**
+    $.fn.pivot.defaults = {
+        source: null, //Must be json or a jquery element containing a table
+        
+        bSum: true, //If you are pivoting over non numeric data set to false.
+        rowTotals: true, // Should we calculate row total?
+        colTotals: true, // Should we calculate column total?
+        bCollapsible: true, // Set to false to expand all and remove open/close buttons
 
-    rowTotalCaption: 'Total',
-    colTotalCaption: 'Total',
+        rowTotalCaption: 'Total',
+        colTotalCaption: 'Total',
 
-    formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
-    parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
-    
-    // You can use it to override the default behaviour and add new colums, change order, hide items
-    // Calculate different "totals" (average?)
-    // This same function runs when we add a new row, and also for the totals
-    onRowAppendPivotValues: function (pivot_values, row_to_append) {
-        appendPivotValues(pivot_values, row_to_append);
-    },
+        formatFunc: function (n) { return n; }, //A function to format numeric result/total cells. Ie. for non US numeric formats
+        parseNumFunc: function (n) { return +n; }, //Can be used if parsing a html table and want a non standard method of parsing data. Ie. for non US numeric formats.
+        
+        // You can use it to override the default behaviour and add new colums, change order, hide items
+        // Calculate different "totals" (average?)
+        // This same function runs when we add a new row, and also for the totals
+        onRowAppendPivotValues: function (pivot_values, row_to_append) {
+            appendPivotValues(pivot_values, row_to_append);
+        },
 
-    // Similar as above you can override the pivot table header drawing functions
-    onRowAppendPivotHeaders: function(pivotCols, row) {
-        appendPivotHeaders(pivotCols, row);
-    },
+        // Similar as above you can override the pivot table header drawing functions
+        onRowAppendPivotHeaders: function(pivotCols, row) {
+            appendPivotHeaders(pivotCols, row);
+        },
 
-    onResultCellClicked: null, //Method thats called when a result cell is clicked. This can be used to call server and present details for that cell.
-    noGroupByText: "No value", //Text used if no data is available for specific groupby and pivot value.
-    noDataText: "No data" //Text used if source data is empty.
-};
-*/
+        onResultCellClicked: null, //Method thats called when a result cell is clicked. This can be used to call server and present details for that cell.
+        noGroupByText: "No value", //Text used if no data is available for specific groupby and pivot value.
+        noDataText: "No data" //Text used if source data is empty.
+    };
+**/
 (function ($) {
     var adapter;
     var $obj;
@@ -121,6 +120,9 @@ $.fn.pivot.defaults = {
         var gbCols = adapter.alGroupByCols;
         var pivotCols = adapter.uniquePivotValues;
 
+        var parent_row = belowThisRow; // we will save this as data property
+        var row = belowThisRow;
+
         for (var i = 0; i < treeNode.children.length; i += 1) {
             var sb = new lib.StringBuilder();
             var item = treeNode.children[i];
@@ -148,13 +150,23 @@ $.fn.pivot.defaults = {
             }
             sb.append('</tr>');
 
-            row_to_append = $(sb.toString()).insertAfter(belowThisRow);            
-            row_to_append
-                .find('.foldunfold')
-                .data("status", { bDatabound: false, treeNode: item });
+            // The new row comes after the previous row
+            row = $(sb.toString()).insertAfter(row);
+                        
+            row.data('parent_row', parent_row); // so later we can highlight it on hover or something
+            row.hover(
+                function() {
+                    $(parent_row).addClass('highlight');
+                },
+                function() {
+                    $(parent_row).removeClass('highlight');                    
+                }
+            )
+
+            row.find('.foldunfold').data("status", { bDatabound: false, treeNode: item });
 
             // This is some global... we need it set the the new row
-            belowThisRow = row_to_append;
+            belowThisRow = row;
 
             var pivot_values = [];
             for (var col1 = 0; col1 < pivotCols.length; col1 += 1) {
@@ -165,7 +177,7 @@ $.fn.pivot.defaults = {
                 });
             }
 
-            opts.onRowAppendPivotValues(pivot_values, row_to_append);
+            opts.onRowAppendPivotValues(pivot_values, row);
         }
     };
 
